@@ -1,0 +1,142 @@
+clear;
+clc;
+N_sim = 4e6;
+
+%%16PSK
+gray = [9,8,0,1,5,4,6,7,3,2,10,11,15,14,12,13];
+mod1 = zeros(1,N_sim/4);
+mod2 = zeros(1,N_sim/4);
+N=1;
+EbN0_dB=0:1:16;
+SER = zeros(1,length(EbN0_dB));
+BER = zeros(1,length(EbN0_dB));
+for EbN0_dB=0:1:16
+    errorsym = 0;
+    errorbit = 0;
+    EbN0 = 10^(EbN0_dB/10);
+    EsN0 = 4*EbN0;
+    SNR = 2*EsN0;
+    Data = round(rand(1,N_sim));
+    Data_matrix = reshape(Data,N_sim/4,4);
+    Data_d = bi2de(Data_matrix,'left-msb');%二进制转十进制
+    %映射到星座图
+    for i=1:1:N_sim/4
+        for j=1:1:16
+            if Data_d(i)==gray(j)
+                mod1(i) = cos(pi*(j-1)/8);
+                mod2(i) = sin(pi*(j-1)/8);
+                break;
+            end
+        end
+    end
+    %高斯白噪声
+    P_noise = (1/EsN0)/2;
+    Noise = sqrt(P_noise)*randn(1,N_sim/4);
+    Trans_Data1 = mod1 + Noise;
+    Trans_Data2 = mod2 + Noise;
+    %接收，判决方法一：用角度判
+% %     Receive_Data = zeros(1,N_sim/4);
+% %     for i=1:1:N_sim/4
+% %         arc = atan2(Trans_Data2(i),Trans_Data1(i));
+% %         if arc<0
+% %             arc = 2*pi+arc;
+% %         end
+% %         arc_angle = arc*180/pi;
+% %         n = floor((arc_angle-11.25)/22.5)+2;
+% %         if n==17
+% %             n=1;
+% %         end
+% %         Receive_Data(i) = gray(n);
+% %         if Receive_Data(i)==Data_d(i)
+% %             errorsym = errorsym+0;
+% %             errorbit = errorbit+0;
+% %         else errorsym = errorsym+1;
+% %             s = dec2base(Receive_Data(i),2,4);
+% %             k = dec2base(Data_d(i),2,4);
+% %             for m=1:1:4
+% %                 if s(m)==k(m)
+% %                     errorbit = errorbit+0;
+% %                 else errorbit = errorbit+1;
+% %                 end
+% %             end
+% %         end
+% %     end
+
+    %接收，判决 方法二：最小欧氏距离方法
+    Point1 = zeros(1,16);
+    Point2 = zeros(1,16);
+    for j=1:1:16
+        Point1(j) = cos(pi*(j-1)/8);
+        Point2(j) = sin(pi*(j-1)/8);
+    end
+    for m=1:1:N_sim/4
+        Distance = zeros(1,16);
+        for j=1:1:16
+            Distance(j)=sqrt((Trans_Data1(m)-Point1(j))^2+(Trans_Data2(m)-Point2(j))^2);
+        end
+        MIN = min(Distance);
+        [a] = find(Distance==MIN);
+        if gray(a)==Data_d(m)
+            errorsym = errorsym+0;
+        else errorsym = errorsym+1;
+            s = dec2base(gray(a),2,4);
+            k = dec2base(Data_d(m),2,4);
+            for t=1:1:4
+                if s(t)==k(t)
+                    errorbit = errorbit+0;
+                else errorbit = errorbit+1;
+                end
+            end
+        end
+    end
+
+    disp(errorsym)
+    SER(N) = errorsym/(N_sim/4);
+    BER(N) = errorbit/N_sim;
+    N = N+1;
+end
+
+EbN0_dB = 0:1:16;
+figure(1)
+semilogy(EbN0_dB',SER)
+text(EbN0_dB,SER,'o','color','r');
+% xlabel('E_b/N_0/(dB)');
+xlabel('{\it E_b\rm/\itN_0\rm(dB)}')
+ylabel('误码率');
+hold on;
+  
+EbN0_dB = 0:1:16;
+N1 = 1;
+SER_ideal = zeros(1,length(EbN0_dB));
+for i=1:1:17
+    EbN0 = 10^(EbN0_dB(i)/10);
+    EsN0 = 4*EbN0;
+    SER_ideal(N1) = 2*normcdf(-sqrt((pi^2)*EsN0/128));
+    N1 = N1+1;
+end
+semilogy(EbN0_dB',SER_ideal);
+text(EbN0_dB,SER_ideal,'o','color','b');
+legend('实际误码率曲线','理论误码率曲线');
+            
+ figure(2)
+semilogy(EbN0_dB',BER)
+text(EbN0_dB,BER,'o','color','r');
+% xlabel('E_b/N_0/(dB)');
+xlabel('{\it E_b\rm/\itN_0\rm(dB)}')
+ylabel('误比特率');
+hold on;
+    
+%%理论
+EbN0_dB = 0:1:16;
+N1 = 1;
+BER_ideal = zeros(1,length(EbN0_dB));
+for i=1:1:17
+    EbN0 = 10^(EbN0_dB(i)/10);
+    EsN0 = 4*EbN0;
+    BER_ideal(N1) = (1/2)*normcdf(-sqrt((pi^2)*EsN0/128));
+    N1 = N1+1;
+end
+semilogy(EbN0_dB',BER_ideal);
+text(EbN0_dB,BER_ideal,'o','color','b');
+legend('实际误比特率曲线','理论误比特率曲线');
+       

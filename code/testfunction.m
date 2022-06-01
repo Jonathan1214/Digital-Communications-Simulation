@@ -1,0 +1,25 @@
+clear all;
+clc;
+code_table = [0 0 0 0;
+              0 0 0 1;
+              0 0 1 1;
+              0 0 1 0;
+              0 1 1 0;
+              0 1 1 1;
+              0 1 0 1;
+              0 1 0 0;
+              0 0 1 1;
+              1 1 0 1;
+              1 1 1 1;
+              1 1 1 0;
+              1 0 1 0;
+              1 0 1 1;
+              1 0 0 1;
+              0 0 0 1];
+star_posi = randn(16, 2);
+a_posi = [1, 2];
+distance = repmat(a_posi, [16 1]) - star_posi;
+distance = sum(distance.^2, 2);
+[~, m] = min(distance);
+decodeResult = code_table(m, :);
+
